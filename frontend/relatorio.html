@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relatório - Drinks Favoritados</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+
+<body>
+  <main class="relatorio-container">
+    <h1>Relatório de Drinks Favoritados</h1>
+
+    <!-- Exibe dados do evento -->
+    <section class="dados-evento">
+      <h2>Informações do Evento</h2>
+      <p><strong>Nome do Responsável:</strong> <span id="nomeResponsavel"></span></p>
+      <p><strong>WhatsApp:</strong> <span id="whatsapp"></span></p>
+      <p><strong>Nome do Evento:</strong> <span id="nomeEvento"></span></p>
+      <p><strong>Tipo de Evento:</strong> <span id="tipoEvento"></span></p>
+      <p><strong>Mesa de Degustação:</strong> <span id="mesaDegustacao"></span></p>
+      <p><strong>Data do Evento:</strong> <span id="dataEvento"></span></p>
+    </section>
+
+    <!-- Exibe lista de drinks favoritados -->
+    <section id="listaDrinksFavoritos"></section>
+
+    <div class="botoes">
+      <button onclick="window.history.back()">Voltar para Avaliação</button>
+    </div>
+  </main>
+
+  <script>
+    const listaDrinksFavoritos = document.getElementById("listaDrinksFavoritos");
+
+    // Função para exibir os dados do evento
+    function renderDadosEvento() {
+      const dadosEvento = JSON.parse(localStorage.getItem("dadosEvento") || "{}");
+
+      if (dadosEvento) {
+        document.getElementById("nomeResponsavel").textContent = dadosEvento.nome || "Não informado";
+        document.getElementById("whatsapp").textContent = dadosEvento.whatsapp || "Não informado";
+        document.getElementById("nomeEvento").textContent = dadosEvento.nomeEvento || "Não informado";
+        document.getElementById("tipoEvento").textContent = dadosEvento.tipoEvento || "Não informado";
+        document.getElementById("mesaDegustacao").textContent = dadosEvento.mesaDegustacao || "Não informado";
+        document.getElementById("dataEvento").textContent = dadosEvento.dataEvento || "Não informado";
+      }
+    }
+
+    // Função para filtrar, ordenar e exibir apenas os drinks favoritados
+    function renderFavoritos() {
+      let drinks = JSON.parse(localStorage.getItem("drinks") || "[]");
+
+      // Filtra drinks favoritados
+      const favoritos = drinks.filter(drink => drink.favoritado);
+
+      // Ordena os drinks por pontuação em ordem decrescente
+      favoritos.sort((a, b) => b.pontuacao - a.pontuacao);
+
+      if (favoritos.length === 0) {
+        listaDrinksFavoritos.innerHTML = "<p>Não há drinks favoritados.</p>";
+        return;
+      }
+
+      // Exibe cada drink favorito
+      favoritos.forEach(drink => {
+        const div = document.createElement("div");
+        div.className = "drink favorito";
+
+        div.innerHTML = `
+          <h3>${drink.nome} - Pontuação: ${drink.pontuacao}</h3>
+          <p>Aparência: ${"⭐".repeat(drink.aparencia)}</p>
+          <p>Aroma: ${"⭐".repeat(drink.aroma)}</p>
+          <p>Sabor: ${"⭐".repeat(drink.sabor)}</p>
+          <p>Textura: ${"⭐".repeat(drink.textura)}</p>
+          <p>Harmonização: ${"⭐".repeat(drink.harmoniza)}</p>
+          <p>Impressão Geral: ${"⭐".repeat(drink.geral)}</p>
+          <p>${drink.comentarios || ''}</p>
+        `;
+        listaDrinksFavoritos.appendChild(div);
+      });
+    }
+
+    // Chama as funções para renderizar os dados do evento e os drinks favoritados
+    renderDadosEvento();
+    renderFavoritos();
+  </script>
+</body>
+
+</html>
