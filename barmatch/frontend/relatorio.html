@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relatório de Drinks</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+
+<body>
+  <main class="relatorio-container">
+    <h1 id="tituloRelatorio">Relatório de Drinks</h1>
+
+    <!-- Dados do evento -->
+    <section class="dados-evento">
+      <h2>Informações do Evento</h2>
+      <p><strong>Nome do Responsável:</strong> <span id="nomeResponsavel"></span></p>
+      <p><strong>WhatsApp:</strong> <span id="whatsapp"></span></p>
+      <p><strong>Nome do Evento:</strong> <span id="nomeEvento"></span></p>
+      <p><strong>Tipo de Evento:</strong> <span id="tipoEvento"></span></p>
+      <p><strong>Mesa de Degustação:</strong> <span id="mesaDegustacao"></span></p>
+      <p><strong>Data do Evento:</strong> <span id="dataEvento"></span></p>
+    </section>
+
+    <!-- Lista dos drinks -->
+    <section id="listaDrinks"></section>
+
+    <div class="botoes">
+      <button onclick="window.history.back()">Voltar para Avaliação</button>
+    </div>
+  </main>
+
+  <script>
+    const titulo = document.getElementById("tituloRelatorio");
+    const listaDrinks = document.getElementById("listaDrinks");
+
+    function getTipoRelatorio() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("tipo") || "todos";
+    }
+
+    function renderDadosEvento() {
+      const dadosEvento = JSON.parse(localStorage.getItem("dadosEvento") || "{}");
+      document.getElementById("nomeResponsavel").textContent = dadosEvento.nome || "Não informado";
+      document.getElementById("whatsapp").textContent = dadosEvento.whatsapp || "Não informado";
+      document.getElementById("nomeEvento").textContent = dadosEvento.nomeEvento || "Não informado";
+      document.getElementById("tipoEvento").textContent = dadosEvento.tipoEvento || "Não informado";
+      document.getElementById("mesaDegustacao").textContent = dadosEvento.mesaDegustacao || "Não informado";
+      document.getElementById("dataEvento").textContent = dadosEvento.dataEvento || "Não informado";
+    }
+
+    async function fetchAvaliacoes() {
+      try {
+        const response = await fetch('http://localhost:3000/avaliacoes');
+        if (!response.ok) throw new Error('Erro ao buscar avaliações');
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Erro no fetchAvaliacoes:', error);
+        listaDrinks.innerHTML = "<p>Erro ao carregar avaliações.</p>";
+        return [];
+      }
+    }
+
+    function renderRelatorio(drinks) {
+      const tipo = getTipoRelatorio();
+      let lista = [];
+
+      if (tipo === "favoritos") {
+        titulo.textContent = "Relatório de Drinks Favoritados";
+        lista = drinks.filter(d => d.favoritado);
+      } else if (tipo === "top5") {
+        titulo.textContent = "Relatório - Top 5 Drinks";
+        lista = [...drinks].sort((a, b) => b.pontuacao - a.pontuacao).slice(0, 5);
+      } else {
+        titulo.textContent = "Relatório de Todos os Drinks";
+        lista = drinks;
+      }
+
+      listaDrinks.innerHTML = "";
+
+      if (lista.length === 0) {
+        listaDrinks.innerHTML = "<p>Nenhum drink disponível para esse relatório.</p>";
+        return;
+      }
+
+      lista.forEach(drink => {
+        const div = document.createElement("div");
+        div.className = "drink" + (drink.favoritado ? " favorito" : "");
+        div.innerHTML = `
+          <h3>${drink.nome} - Pontuação: ${drink.pontuacao}</h3>
+          <p>Aparência: ${"⭐".repeat(drink.aparencia)}</p>
+          <p>Aroma: ${"⭐".repeat(drink.aroma)}</p>
+          <p>Sabor: ${"⭐".repeat(drink.sabor)}</p>
+          <p>Textura: ${"⭐".repeat(drink.textura)}</p>
+          <p>Harmonização: ${"⭐".repeat(drink.harmoniza)}</p>
+          <p>Impressão Geral: ${"⭐".repeat(drink.geral)}</p>
+          <p>${drink.comentarios || ''}</p>
+        `;
+        listaDrinks.appendChild(div);
+      });
+    }
+
+    async function main() {
+      renderDadosEvento();
+      const avaliacoes = await fetchAvaliacoes();
+      renderRelatorio(avaliacoes);
+    }
+
+    main();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Barman</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    .relatorio-container {
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .drink-card {
+      background-color: #fff;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .drink-card:hover {
+      background-color: #f9f9f9;
+    }
+
+    .drink-card.favoritado {
+      border-left: 5px solid #4CAF50;
+      background-color: #f0fff0;
+    }
+
+    .drink-nome {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .drink-comentario {
+      font-size: 0.95rem;
+      color: #666;
+      margin: 8px 0;
+    }
+
+    .drink-estrelas {
+      font-size: 1.2rem;
+      color: #FFD700;
+      margin: 5px 0;
+    }
+
+    .drink-mesa {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #4CAF50;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    .drink-detalhes {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+      font-size: 0.95rem;
+    }
+
+    .drink-detalhes p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="relatorio-container">
+    <h1>Degustações em Tempo Real</h1>
+
+    <!-- Filtros -->
+    <div style="margin-bottom: 20px;">
+      <label>Ordenar por:</label>
+      <select id="ordenacao">
+        <option value="mais-recentes">Mais recentes</option>
+        <option value="maior-nota">Maior nota</option>
+        <option value="menor-nota">Menor nota</option>
+      </select>
+
+      <label style="margin-left: 20px;">Filtrar por nota geral:</label>
+      <select id="filtroNota">
+        <option value="">Todas</option>
+        <option value="1">⭐ 1</option>
+        <option value="2">⭐ 2</option>
+        <option value="3">⭐ 3</option>
+        <option value="4">⭐ 4</option>
+        <option value="5">⭐ 5</option>
+      </select>
+
+      <label style="margin-left: 20px;">Filtrar por mesa:</label>
+      <input type="text" id="filtroMesa" placeholder="Ex: 12" style="width: 80px;" />
+    </div>
+
+    <!-- Lista de cards -->
+    <section id="listaDrinks"></section>
+
+    <!-- Lista de eventos -->
+    <ul id="listaEventos">
+      <!-- Os eventos serão carregados aqui -->
+    </ul>
+  </main>
+
+  <script>
+    // Função para renderizar os drinks
+    function renderDrinksSimples() {
+      const container = document.getElementById("listaDrinks");
+      container.innerHTML = "";
+
+      const dadosEvento = JSON.parse(localStorage.getItem("dadosEvento") || "{}");
+      const mesaAtual = dadosEvento.mesaDegustacao || "Não informada";
+
+      let drinks = JSON.parse(localStorage.getItem("drinks") || "[]");
+
+      // Agrupar por nome + mesa
+      const agrupados = {};
+
+      drinks.forEach(drink => {
+        const key = `${drink.nome.toLowerCase()}|${mesaAtual}`;
+        if (!agrupados[key]) {
+          agrupados[key] = {
+            nome: drink.nome,
+            mesa: mesaAtual,
+            comentarios: [],
+            favoritado: false,
+            total: 0,
+            aparencia: 0,
+            aroma: 0,
+            sabor: 0,
+            textura: 0,
+            harmoniza: 0,
+            geral: 0,
+            count: 0
+          };
+        }
+
+        agrupados[key].aparencia += drink.aparencia || 0;
+        agrupados[key].aroma += drink.aroma || 0;
+        agrupados[key].sabor += drink.sabor || 0;
+        agrupados[key].textura += drink.textura || 0;
+        agrupados[key].harmoniza += drink.harmoniza || 0;
+        agrupados[key].geral += drink.geral || 0;
+        agrupados[key].count += 1;
+        agrupados[key].favoritado = agrupados[key].favoritado || drink.favoritado;
+
+        if (drink.comentarios) agrupados[key].comentarios.push(drink.comentarios);
+      });
+
+      // Transforma em array
+      let listaAgrupada = Object.values(agrupados).map(d => {
+        const count = d.count || 1;
+        return {
+          nome: d.nome,
+          mesa: d.mesa,
+          favoritado: d.favoritado,
+          comentarios: d.comentarios.join(" | "),
+          aparencia: Math.round(d.aparencia / count),
+          aroma: Math.round(d.aroma / count),
+          sabor: Math.round(d.sabor / count),
+          textura: Math.round(d.textura / count),
+          harmoniza: Math.round(d.harmoniza / count),
+          geral: Math.round(d.geral / count),
+          qtdAvaliacoes: count
+        };
+      });
+
+      // APLICAR FILTROS
+      const ordenacao = document.getElementById("ordenacao").value;
+      const filtroNota = document.getElementById("filtroNota").value;
+      const filtroMesa = document.getElementById("filtroMesa").value.trim();
+
+      if (filtroNota) {
+        listaAgrupada = listaAgrupada.filter(d => Math.round((d.geral || 0) / 2) === parseInt(filtroNota));
+      }
+
+      if (filtroMesa) {
+        listaAgrupada = listaAgrupada.filter(d => d.mesa === filtroMesa);
+      }
+
+      if (ordenacao === "maior-nota") {
+        listaAgrupada.sort((a, b) => b.geral - a.geral);
+      } else if (ordenacao === "menor-nota") {
+        listaAgrupada.sort((a, b) => a.geral - b.geral);
+      }
+
+      // EXIBIR
+      if (listaAgrupada.length === 0) {
+        container.innerHTML = "<p>Nenhuma degustação registrada.</p>";
+        return;
+      }
+
+      listaAgrupada.forEach((drink, index) => {
+        const card = document.createElement("div");
+        card.className = "drink-card" + (drink.favoritado ? " favoritado" : "");
+
+        let notaEstrelas = Math.round((drink.geral || 0) / 2);
+        notaEstrelas = Math.max(1, Math.min(5, notaEstrelas));
+
+        const comentarioHTML = drink.comentarios
+          ? `<div class="drink-comentario">"${drink.comentarios}"</div>`
+          : "";
+
+        card.innerHTML = `
+      <div class="drink-nome">${drink.nome}</div>
+      ${comentarioHTML}
+      <div class="drink-estrelas">${"⭐".repeat(notaEstrelas)} (${notaEstrelas})</div>
+      <div class="drink-mesa">Mesa ${drink.mesa}</div>
+      <div class="drink-detalhes" id="detalhes-${index}">
+        <p><strong>Aparência:</strong> ⭐ ${drink.aparencia}</p>
+        <p><strong>Aroma:</strong> ⭐ ${drink.aroma}</p>
+        <p><strong>Sabor:</strong> ⭐ ${drink.sabor}</p>
+        <p><strong>Textura:</strong> ⭐ ${drink.textura}</p>
+        <p><strong>Harmonização:</strong> ⭐ ${drink.harmoniza}</p>
+        <p><strong>Impressão Geral:</strong> ⭐ ${drink.geral}</p>
+        <p><strong>Avaliações:</strong> ${drink.qtdAvaliacoes}</p>
+      </div>
+    `;
+
+        card.addEventListener("click", () => {
+          const detalhes = card.querySelector(`#detalhes-${index}`);
+          detalhes.style.display = detalhes.style.display === "none" ? "block" : "none";
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    // Requisição para carregar eventos
+    fetch('https://barmatch-backend.onrender.com/eventos')
+      .then(response => response.json())
+      .then(eventos => {
+        const listaEventos = document.getElementById('listaEventos');
+        eventos.forEach(evento => {
+          const item = document.createElement('li');
+          item.textContent = `Evento: ${evento.nome}, Tipo: ${evento.tipoEvento}, Data: ${evento.dataEvento}`;
+          listaEventos.appendChild(item);
+        });
+      })
+      .catch(error => {
+        console.error('Erro ao carregar eventos:', error);
+      });
+
+    // Eventos de filtro e ordenação
+    document.getElementById("ordenacao").addEventListener("change", renderDrinksSimples);
+    document.getElementById("filtroNota").addEventListener("change", renderDrinksSimples);
+    document.getElementById("filtroMesa").addEventListener("input", renderDrinksSimples);
+
+    renderDrinksSimples();
+
+    // Recarregar a cada 7 segundos
+    setTimeout(() => location.reload(), 7000);
+  </script>
+</body>
+
+</html>

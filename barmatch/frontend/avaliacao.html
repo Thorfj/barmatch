@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Avaliação de Drinks</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+
+<body>
+  <main class="avaliacao-container">
+    <h1>Avaliação de Drinks</h1>
+    <form id="formAvaliacao">
+      <label>
+        Nome do Drink:
+        <input type="text" id="nomeDrink" required />
+      </label>
+      <label>
+        Aparência: <span id="valAparencia">3</span>
+        <input type="range" id="aparencia" min="1" max="5" value="3" />
+      </label>
+      <label>
+        Aroma: <span id="valAroma">3</span>
+        <input type="range" id="aroma" min="1" max="5" value="3" />
+      </label>
+      <label>
+        Sabor: <span id="valSabor">3</span>
+        <input type="range" id="sabor" min="1" max="5" value="3" />
+      </label>
+      <label>
+        Textura: <span id="valTextura">3</span>
+        <input type="range" id="textura" min="1" max="5" value="3" />
+      </label>
+      <label>
+        Harmonização: <span id="valHarmoniza">3</span>
+        <input type="range" id="harmoniza" min="1" max="5" value="3" />
+      </label>
+      <label>
+        Impressão Geral (1 a 10): <span id="valGeral">5</span>
+        <input type="range" id="impressaoGeral" min="1" max="10" value="5" />
+      </label>
+      <label>
+        Repetiria o Drink?
+        <select id="repetiria">
+          <option>Sim</option>
+          <option>Não</option>
+        </select>
+      </label>
+      <label>
+        Comentários:
+        <textarea id="comentarios" rows="3"></textarea>
+      </label>
+      <div class="botoes">
+        <button type="submit">Salvar Avaliação</button>
+        <button type="button" id="gerarRelatorio">Gerar Relatório</button>
+        <button type="button" id="zerar">Zerar Avaliações</button>
+      </div>
+    </form>
+
+    <div id="listaDrinks"></div>
+
+    <script>
+      const form = document.getElementById("formAvaliacao");
+      const drinksList = document.getElementById("listaDrinks");
+      const gerarRelatorioBtn = document.getElementById("gerarRelatorio");
+      const zerarBtn = document.getElementById("zerar");
+
+      const inputsRange = [
+        { id: "aparencia", span: "valAparencia" },
+        { id: "aroma", span: "valAroma" },
+        { id: "sabor", span: "valSabor" },
+        { id: "textura", span: "valTextura" },
+        { id: "harmoniza", span: "valHarmoniza" },
+        { id: "impressaoGeral", span: "valGeral" },
+      ];
+
+      inputsRange.forEach(({ id, span }) => {
+        const input = document.getElementById(id);
+        const display = document.getElementById(span);
+        input.addEventListener("input", () => {
+          display.textContent = input.value;
+        });
+      });
+
+      let drinks = JSON.parse(localStorage.getItem("drinks") || "[]");
+
+      function renderDrinks() {
+        drinksList.innerHTML = "";
+
+        const validos = drinks.filter(d => d.nome && d.pontuacao);
+
+        if (validos.length === 0) {
+          drinksList.innerHTML = "<p>Nenhum drink avaliado ainda.</p>";
+          return;
+        }
+
+        const ordenados = [...validos].sort((a, b) => {
+          const pA = a.favoritado ? 1000 + a.pontuacao : a.pontuacao;
+          const pB = b.favoritado ? 1000 + b.pontuacao : b.pontuacao;
+          return pB - pA;
+        });
+
+        ordenados.forEach((drink, i) => {
+          const index = drinks.indexOf(drink);
+
+          const div = document.createElement("div");
+          div.className = "drink" + (drink.favoritado ? " favorito" : "");
+          div.style.cursor = "pointer";
+          div.onclick = () => toggleFavorito(index);
+
+          const pontoText = ` - Pontuação: ${drink.pontuacao}`;
+          div.innerHTML = `
+        <h3>${drink.nome}${pontoText}</h3>
+        <p>Aparência: ${"⭐".repeat(drink.aparencia)}</p>
+        <p>Aroma: ${"⭐".repeat(drink.aroma)}</p>
+        <p>Sabor: ${"⭐".repeat(drink.sabor)}</p>
+        <p>Textura: ${"⭐".repeat(drink.textura)}</p>
+        <p>Harmonização: ${"⭐".repeat(drink.harmoniza)}</p>
+        <p>Impressão Geral: ${"⭐".repeat(drink.geral)}</p>
+        <p>${drink.comentarios || ''}</p>
+      `;
+          drinksList.appendChild(div);
+        });
+      }
+
+      function toggleFavorito(index) {
+        drinks[index].favoritado = !drinks[index].favoritado;
+        localStorage.setItem("drinks", JSON.stringify(drinks));
+        renderDrinks();
+      }
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const nome = document.getElementById("nomeDrink").value.trim();
+        const aparencia = +document.getElementById("aparencia").value;
+        const aroma = +document.getElementById("aroma").value;
+        const sabor = +document.getElementById("sabor").value;
+        const textura = +document.getElementById("textura").value;
+        const harmoniza = +document.getElementById("harmoniza").value;
+        const geral = +document.getElementById("impressaoGeral").value;
+        const repetiria = document.getElementById("repetiria").value;
+        const comentarios = document.getElementById("comentarios").value.trim();
+
+        if (!nome) {
+          alert("Preencha o nome do drink.");
+          return;
+        }
+
+        const notaRepetiria = repetiria === "Sim" ? 5 : 2;
+        const pontuacao = aparencia + aroma + sabor + textura + harmoniza + geral + notaRepetiria;
+
+        const avaliacao = {
+          nome,
+          aparencia,
+          aroma,
+          sabor,
+          textura,
+          harmoniza,
+          geral,
+          repetiria,
+          comentarios,
+          pontuacao,
+          favoritado: false
+        };
+
+        try {
+          // Enviar para o backend
+          const response = await fetch('https://barmatch-backend.onrender.com/avaliacoes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(avaliacao),
+          });
+
+          if (!response.ok) throw new Error('Erro ao salvar avaliação no servidor.');
+
+          const saved = await response.json();
+          console.log('Avaliação salva no backend:', saved);
+
+          // Salvar localmente também para relatório
+          drinks.push(avaliacao);
+          localStorage.setItem("drinks", JSON.stringify(drinks));
+          renderDrinks();
+          form.reset();
+
+          // Resetar displays dos ranges
+          inputsRange.forEach(({ span }) => {
+            const display = document.getElementById(span);
+            if (span === "valGeral") display.textContent = 5;
+            else display.textContent = 3;
+          });
+
+        } catch (error) {
+          alert(error.message);
+          console.error(error);
+        }
+      });
+
+      gerarRelatorioBtn.addEventListener("click", () => {
+        const tipo = prompt("Escolha o tipo de relatório:\n1 - Todos\n2 - Favoritos\n3 - Top 5");
+        let tipoRelatorio = "todos";
+        if (tipo === "2") tipoRelatorio = "favoritos";
+        else if (tipo === "3") tipoRelatorio = "top5";
+
+        window.location.href = `relatorio.html?tipo=${tipoRelatorio}`;
+      });
+
+      zerarBtn.addEventListener("click", () => {
+        if (confirm("Tem certeza que deseja apagar todas as avaliações?")) {
+          localStorage.removeItem("drinks");
+          drinks = [];
+          renderDrinks();
+        }
+      });
+
+      renderDrinks();
+    </script>
+
+  </main>
+</body>
+
+</html>
